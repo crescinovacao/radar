@@ -59,7 +59,7 @@
     border: none; outline: none; resize: none;
     padding: 12px;
     font-family: 'Aptos', 'Segoe UI', sans-serif;
-    font-size: 13px; color: #210000;
+    font-size: 16px; color: #210000;
     background: #f5f5f5; line-height: 1.5;
   }
   .area-row td textarea::placeholder { color: #bbb; font-style: italic; }
@@ -174,7 +174,7 @@
     border: none; outline: none; resize: none;
     padding: 12px;
     font-family: 'Aptos', 'Segoe UI', sans-serif;
-    font-size: 14px; color: #210000;
+    font-size: 16px; color: #210000;
     background: #f5f5f5; line-height: 1.5;
   }
   .dim-card-body textarea::placeholder { color: #bbb; font-style: italic; }
@@ -310,6 +310,7 @@ function buildForm() {
     const ta  = document.createElement('textarea');
     ta.id = 'ativ-' + i;
     ta.placeholder = 'Liste as atividades...';
+    ta.addEventListener('input', () => salvarLocal());
     tdA.appendChild(ta);
     document.getElementById('areaRow').appendChild(tdA);
 
@@ -357,10 +358,10 @@ function buildMobileCards() {
 }
 
 function syncAtiv(i) {
-  // Sincroniza textarea mobile -> desktop
   const val = document.getElementById('mativ-' + i).value;
   const desk = document.getElementById('ativ-' + i);
   if (desk) desk.value = val;
+  salvarLocal();
 }
 
 function syncPct(tipo, i) {
@@ -369,6 +370,41 @@ function syncPct(tipo, i) {
   const val = document.getElementById(mId).value;
   const desk = document.getElementById(dId);
   if (desk) { desk.value = val; calcTotais(); }
+  salvarLocal();
+}
+
+function salvarLocal() {
+  const dados = {};
+  DIMS.forEach((_, i) => {
+    dados['ativ-' + i] = document.getElementById('ativ-' + i)?.value || '';
+    dados['inv-' + i]  = document.getElementById('inv-' + i)?.value || '';
+    dados['ide-' + i]  = document.getElementById('ide-' + i)?.value || '';
+  });
+  localStorage.setItem('radar-lideranca', JSON.stringify(dados));
+}
+
+function carregarLocal() {
+  const raw = localStorage.getItem('radar-lideranca');
+  if (!raw) return;
+  try {
+    const dados = JSON.parse(raw);
+    DIMS.forEach((_, i) => {
+      const ativ = document.getElementById('ativ-' + i);
+      const inv  = document.getElementById('inv-' + i);
+      const ide  = document.getElementById('ide-' + i);
+      if (ativ) ativ.value = dados['ativ-' + i] || '';
+      if (inv)  inv.value  = dados['inv-' + i]  || '';
+      if (ide)  ide.value  = dados['ide-' + i]  || '';
+      // Sincronizar nos cards mobile
+      const mativ = document.getElementById('mativ-' + i);
+      const minv  = document.getElementById('minv-' + i);
+      const mide  = document.getElementById('mide-' + i);
+      if (mativ) mativ.value = dados['ativ-' + i] || '';
+      if (minv)  minv.value  = dados['inv-' + i]  || '';
+      if (mide)  mide.value  = dados['ide-' + i]  || '';
+    });
+    calcTotais();
+  } catch(e) {}
 }
 
 function calcTotais() {
@@ -611,6 +647,7 @@ async function gerarPDF() {
 }
 
 buildForm();
+carregarLocal();
 </script>
 </body>
 </html>
