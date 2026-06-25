@@ -200,46 +200,18 @@
   }
   .dim-card-sep:first-child { border-right: 3px solid #fff; }
 
-  /* Resultado mobile */
-  .mobile-res-cards { display: none; flex-direction: column; gap: 16px; margin-bottom: 20px; }
-  .res-card {
-    border-radius: 12px; overflow: hidden; background: #fff;
-  }
-  .res-card-header {
-    background: #733909; color: #fff;
-    font-family: 'Raleway', sans-serif; font-weight: 700;
-    font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
-    padding: 12px 16px; text-align: center;
-  }
-  .res-card-atividades {
-    background: #f5f5f5; padding: 12px 14px;
-    font-size: 14px; color: #210000; line-height: 1.6;
-    white-space: pre-wrap; min-height: 40px;
-  }
-  .res-card-pcts {
-    display: grid; grid-template-columns: 1fr 1fr;
-  }
-  .res-card-pct {
-    background: #f5f5f5; text-align: center; padding: 14px 8px;
-  }
-  .res-card-pct:first-child { border-right: 3px solid #fff; }
-  .res-card-sep {
-    background: #FF5527; color: #fff;
-    font-family: 'Raleway', sans-serif; font-weight: 700;
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
-    padding: 5px; text-align: center;
-  }
-  .res-card-sep:first-child { border-right: 3px solid #fff; }
+
+
+  #mobileCardsResult { display: none; }
 
   @media (max-width: 600px) {
     body { padding: 24px 10px 48px; }
     .totals-row { grid-template-columns: 1fr; }
     .btns-resultado { flex-direction: column; gap: 8px; }
-    /* Esconde tabela, mostra cards */
     #mainTable { display: none; }
     .mobile-cards { display: flex; }
-    #resTable { display: none; }
-    .mobile-res-cards { display: flex; }
+    #resTable { display: none !important; }
+    #mobileCardsResult { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
   }
 </style>
 </head>
@@ -261,7 +233,7 @@
         <tr class="pct-row" id="ideRow"></tr>
       </tbody>
     </table>
-    <div class="mobile-cards" id="mobileCards"></div>
+    <div class="mobile-cards-slot"><div class="mobile-cards" id="mobileCards"></div></div>
 
     <div class="totals-row">
       <div class="total-box" id="boxInv">
@@ -283,7 +255,7 @@
       <thead><tr id="resHeaderRow"></tr></thead>
       <tbody id="resBody"></tbody>
     </table>
-    <div class="mobile-res-cards" id="mobileResCards"></div>
+    <div id="mobileCardsResult" style="display:flex;flex-direction:column;gap:16px;margin-bottom:20px;"></div>
 
     <div class="btns-resultado">
       <button class="btn-acao outline" onclick="voltarForm()">← Editar</button>
@@ -488,12 +460,23 @@ function mostrarResultado() {
   });
   tbody.appendChild(trIde);
 
+  // Mobile: move os cards preenchidos pro resultado
+  const cards = document.getElementById('mobileCards');
+  const slot  = document.getElementById('mobileCardsResult');
+  slot.innerHTML = '';
+  slot.appendChild(cards);
+
   document.getElementById('telaForm').style.display = 'none';
   document.getElementById('telaResultado').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function voltarForm() {
+  // Devolve os cards pro form
+  const cards = document.getElementById('mobileCards');
+  const formSlot = document.querySelector('#telaForm .mobile-cards-slot');
+  formSlot.appendChild(cards);
+
   document.getElementById('telaResultado').style.display = 'none';
   document.getElementById('telaForm').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
