@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Radar da Liderança</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Aptos', 'Segoe UI', sans-serif;
+    background: #fff;
+    color: #210000;
+    min-height: 100vh;
+    padding: 40px 16px 60px;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; }
+
+  h1 {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 800;
+    font-size: clamp(22px, 4vw, 30px);
+    color: #733909;
+    margin-bottom: 6px;
+  }
+  .subtitle { font-size: 14px; color: #666; margin-bottom: 28px; }
+
+  /* ── TABELA (compartilhada entre form e resultado) ── */
+  .radar-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    table-layout: fixed;
+  }
+  .radar-table thead th {
+    background: #733909; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 13px 8px; text-align: center;
+    border-right: 3px solid #fff; word-break: break-word;
+  }
+  .radar-table thead th:last-child { border-right: none; }
+
+  .area-row td {
+    padding: 0; border-right: 3px solid #fff;
+    vertical-align: top; height: 180px;
+  }
+  .area-row td:last-child { border-right: none; }
+
+  .area-row td textarea {
+    width: 100%; height: 100%; min-height: 180px;
+    border: none; outline: none; resize: none;
+    padding: 12px;
+    font-family: 'Aptos', 'Segoe UI', sans-serif;
+    font-size: 13px; color: #210000;
+    background: #f5f5f5; line-height: 1.5;
+  }
+  .area-row td textarea::placeholder { color: #bbb; font-style: italic; }
+  .area-row td textarea:focus { background: #ebebeb; }
+
+  /* Célula de texto no resultado */
+  .area-row td.res-cell {
+    padding: 12px; background: #f5f5f5;
+    font-size: 13px; color: #210000; line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  .separator-row td {
+    background: #FF5527; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 8px 12px; text-align: center;
+  }
+
+  .pct-row td {
+    padding: 14px 12px; text-align: center;
+    border-right: 3px solid #fff;
+    border-bottom: 3px solid #fff;
+    background: #f5f5f5;
+  }
+  .pct-row td:last-child { border-right: none; }
+
+  /* Input no form */
+  .pct-wrap { display: inline-flex; align-items: center; position: relative; }
+  .pct-wrap input {
+    width: 68px; padding: 9px 26px 9px 10px;
+    border: 1.5px solid #e0e0e0; border-radius: 8px;
+    font-family: inherit; font-size: 16px; font-weight: 700;
+    color: #210000; text-align: center; outline: none;
+    background: #f5f5f5;
+    transition: border-color 0.2s, background 0.2s;
+    -moz-appearance: textfield;
+  }
+  .pct-wrap input::-webkit-outer-spin-button,
+  .pct-wrap input::-webkit-inner-spin-button { -webkit-appearance: none; }
+  .pct-wrap input:focus { border-color: #FF5527; background: #fff3ee; }
+  .pct-sym { position: absolute; right: 8px; font-size: 12px; color: #999; pointer-events: none; }
+
+  /* % grande no resultado */
+  .pct-val {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 800; font-size: 14px; color: #733909;
+  }
+
+  /* Totalizadores */
+  .totals-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .total-box {
+    background: #fff; border: 1.5px solid #e0e0e0; border-radius: 8px;
+    padding: 10px 16px; display: flex; justify-content: space-between;
+    align-items: center; font-size: 13px; color: #666; transition: all 0.2s;
+  }
+  .total-box.ok   { border-color: #2c7c37; background: #e8f5e9; color: #2c7c37; }
+  .total-box.over { border-color: #c0392b; background: #fdecea; color: #c0392b; }
+  .total-box .lbl { font-weight: 600; }
+  .total-box .val { font-family: 'Raleway', sans-serif; font-weight: 800; font-size: 18px; }
+
+  /* Botões */
+  .btn-primary {
+    background: #733909; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700; font-size: 15px;
+    padding: 13px 32px; border: none; border-radius: 8px; cursor: pointer;
+    transition: background 0.2s; width: 100%; margin-bottom: 10px;
+  }
+  .btn-primary:hover    { background: #5a2c07; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+
+  .btns-resultado {
+    display: flex; justify-content: space-between; margin-top: 16px; margin-bottom: 24px;
+  }
+  .btn-acao {
+    background: #733909; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700; font-size: 14px;
+    padding: 11px 24px; border: none; border-radius: 8px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-acao:hover { background: #5a2c07; }
+  .btn-acao.outline {
+    background: #fff; color: #733909; border: 1.5px solid #733909;
+  }
+  .btn-acao.outline:hover { background: #fff3ee; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fadeIn { animation: fadeIn 0.35s ease; }
+
+  /* ── CARDS MOBILE ── */
+  .mobile-cards { display: none; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+
+  .dim-card {
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .dim-card-header {
+    background: #733909; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 12px 16px; text-align: center;
+  }
+  .dim-card-body {
+    background: #f5f5f5;
+  }
+  .dim-card-body textarea {
+    width: 100%; min-height: 120px;
+    border: none; outline: none; resize: none;
+    padding: 12px;
+    font-family: 'Aptos', 'Segoe UI', sans-serif;
+    font-size: 14px; color: #210000;
+    background: #f5f5f5; line-height: 1.5;
+  }
+  .dim-card-body textarea::placeholder { color: #bbb; font-style: italic; }
+  .dim-card-body textarea:focus { background: #ebebeb; }
+
+  .dim-card-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .dim-card-pct {
+    background: #f5f5f5;
+    padding: 12px;
+    text-align: center;
+  }
+  .dim-card-pct:first-child {
+    border-right: 3px solid #fff;
+  }
+  .dim-card-sep {
+    background: #FF5527; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 5px; text-align: center;
+  }
+  .dim-card-sep:first-child { border-right: 3px solid #fff; }
+
+  /* Resultado mobile */
+  .mobile-res-cards { display: none; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+  .res-card {
+    border-radius: 12px; overflow: hidden; background: #fff;
+  }
+  .res-card-header {
+    background: #733909; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 12px 16px; text-align: center;
+  }
+  .res-card-atividades {
+    background: #f5f5f5; padding: 12px 14px;
+    font-size: 14px; color: #210000; line-height: 1.6;
+    white-space: pre-wrap; min-height: 40px;
+  }
+  .res-card-pcts {
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  .res-card-pct {
+    background: #f5f5f5; text-align: center; padding: 14px 8px;
+  }
+  .res-card-pct:first-child { border-right: 3px solid #fff; }
+  .res-card-sep {
+    background: #FF5527; color: #fff;
+    font-family: 'Raleway', sans-serif; font-weight: 700;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 5px; text-align: center;
+  }
+  .res-card-sep:first-child { border-right: 3px solid #fff; }
+
+  @media (max-width: 600px) {
+    body { padding: 24px 10px 48px; }
+    .totals-row { grid-template-columns: 1fr; }
+    .btns-resultado { flex-direction: column; gap: 8px; }
+    /* Esconde tabela, mostra cards */
+    #mainTable { display: none; }
+    .mobile-cards { display: flex; }
+    #resTable { display: none; }
+    .mobile-res-cards { display: flex; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ── FORM ── -->
+  <div id="telaForm">
+    <h1>Radar da Liderança</h1>
+    <p class="subtitle">Liste as atividades de cada dimensao e distribua 100% do seu tempo entre elas.</p>
+
+    <table class="radar-table" id="mainTable">
+      <thead><tr id="headerRow"></tr></thead>
+      <tbody>
+        <tr class="area-row" id="areaRow"></tr>
+        <tr class="separator-row"><td colspan="5">Tempo Investido</td></tr>
+        <tr class="pct-row" id="invRow"></tr>
+        <tr class="separator-row"><td colspan="5">Tempo Ideal</td></tr>
+        <tr class="pct-row" id="ideRow"></tr>
+      </tbody>
+    </table>
+    <div class="mobile-cards" id="mobileCards"></div>
+
+    <div class="totals-row">
+      <div class="total-box" id="boxInv">
+        <span class="lbl">Tempo investido</span>
+        <span class="val" id="valInv">0%</span>
+      </div>
+      <div class="total-box" id="boxIde">
+        <span class="lbl">Tempo ideal</span>
+        <span class="val" id="valIde">0%</span>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btnVer" onclick="mostrarResultado()" disabled>Ver resultado →</button>
+  </div>
+
+  <!-- ── RESULTADO ── -->
+  <div id="telaResultado" style="display:none;">
+    <table class="radar-table fadeIn" id="resTable">
+      <thead><tr id="resHeaderRow"></tr></thead>
+      <tbody id="resBody"></tbody>
+    </table>
+    <div class="mobile-res-cards" id="mobileResCards"></div>
+
+    <div class="btns-resultado">
+      <button class="btn-acao outline" onclick="voltarForm()">← Editar</button>
+      <button class="btn-acao" id="btnPDF" onclick="gerarPDF()">Baixar PDF</button>
+    </div>
+  </div>
+
+</div>
+<script>
+const DIMS = ['Rotina','Atividade Estrategica','Desenvolvimento de Pessoas','Autodesenvolvimento','Relacionamento'];
+let dados = {};
+
+function buildForm() {
+  DIMS.forEach((nome, i) => {
+    const th = document.createElement('th');
+    if (nome === 'Desenvolvimento de Pessoas') {
+      th.innerHTML = 'Desenvolvimento<br>de Pessoas';
+    } else {
+      th.textContent = nome;
+    }
+    document.getElementById('headerRow').appendChild(th);
+
+    const tdA = document.createElement('td');
+    const ta  = document.createElement('textarea');
+    ta.id = 'ativ-' + i;
+    ta.placeholder = 'Liste as atividades...';
+    tdA.appendChild(ta);
+    document.getElementById('areaRow').appendChild(tdA);
+
+    const tdI = document.createElement('td');
+    tdI.innerHTML = `<div class="pct-wrap"><input type="number" min="0" max="100" id="inv-${i}" placeholder="0" oninput="calcTotais()"><span class="pct-sym">%</span></div>`;
+    document.getElementById('invRow').appendChild(tdI);
+
+    const tdD = document.createElement('td');
+    tdD.innerHTML = `<div class="pct-wrap"><input type="number" min="0" max="100" id="ide-${i}" placeholder="0" oninput="calcTotais()"><span class="pct-sym">%</span></div>`;
+    document.getElementById('ideRow').appendChild(tdD);
+  });
+  buildMobileCards();
+}
+
+function buildMobileCards() {
+  const container = document.getElementById('mobileCards');
+  container.innerHTML = '';
+  DIMS.forEach((nome, i) => {
+    container.innerHTML += `
+      <div class="dim-card">
+        <div class="dim-card-header">${nome}</div>
+        <div class="dim-card-body">
+          <textarea id="mativ-${i}" placeholder="Liste as atividades..." oninput="syncAtiv(${i})"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;">
+          <div class="dim-card-sep">Tempo Investido</div>
+          <div class="dim-card-sep">Tempo Ideal</div>
+        </div>
+        <div class="dim-card-footer">
+          <div class="dim-card-pct">
+            <div class="pct-wrap">
+              <input type="number" min="0" max="100" id="minv-${i}" placeholder="0" oninput="syncPct('inv',${i})">
+              <span class="pct-sym">%</span>
+            </div>
+          </div>
+          <div class="dim-card-pct">
+            <div class="pct-wrap">
+              <input type="number" min="0" max="100" id="mide-${i}" placeholder="0" oninput="syncPct('ide',${i})">
+              <span class="pct-sym">%</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+function syncAtiv(i) {
+  // Sincroniza textarea mobile -> desktop
+  const val = document.getElementById('mativ-' + i).value;
+  const desk = document.getElementById('ativ-' + i);
+  if (desk) desk.value = val;
+}
+
+function syncPct(tipo, i) {
+  const mId = (tipo === 'inv' ? 'minv-' : 'mide-') + i;
+  const dId = (tipo === 'inv' ? 'inv-' : 'ide-') + i;
+  const val = document.getElementById(mId).value;
+  const desk = document.getElementById(dId);
+  if (desk) { desk.value = val; calcTotais(); }
+}
+
+function calcTotais() {
+  let totInv = 0, totIde = 0;
+  DIMS.forEach((_, i) => {
+    totInv += parseInt(document.getElementById('inv-' + i).value || 0);
+    totIde += parseInt(document.getElementById('ide-' + i).value || 0);
+  });
+  document.getElementById('valInv').textContent = totInv + '%';
+  document.getElementById('valIde').textContent = totIde + '%';
+  document.getElementById('boxInv').className = 'total-box' + (totInv === 100 ? ' ok' : totInv > 100 ? ' over' : '');
+  document.getElementById('boxIde').className = 'total-box' + (totIde === 100 ? ' ok' : totIde > 100 ? ' over' : '');
+  document.getElementById('btnVer').disabled = !(totInv === 100 && totIde === 100);
+}
+
+function mostrarResultado() {
+  dados = {
+    dims: DIMS.map((nome, i) => ({
+      nome,
+      atividades: document.getElementById('ativ-' + i).value.trim(),
+      investido:  parseInt(document.getElementById('inv-' + i).value || 0),
+      ideal:      parseInt(document.getElementById('ide-' + i).value || 0),
+    }))
+  };
+
+  // Cabeçalho
+  const resHeader = document.getElementById('resHeaderRow');
+  resHeader.innerHTML = '';
+  dados.dims.forEach(d => {
+    const th = document.createElement('th');
+    if (d.nome === 'Desenvolvimento de Pessoas') {
+      th.innerHTML = 'Desenvolvimento<br>de Pessoas';
+    } else {
+      th.textContent = d.nome;
+    }
+    resHeader.appendChild(th);
+  });
+
+  // Corpo
+  const tbody = document.getElementById('resBody');
+  tbody.innerHTML = '';
+
+  // Linha de atividades
+  const trArea = document.createElement('tr');
+  trArea.className = 'area-row';
+  dados.dims.forEach(d => {
+    const td = document.createElement('td');
+    td.className = 'res-cell';
+    td.textContent = d.atividades || '';
+    trArea.appendChild(td);
+  });
+  tbody.appendChild(trArea);
+
+  // Tempo Investido
+  const trSI = document.createElement('tr');
+  trSI.className = 'separator-row';
+  trSI.innerHTML = `<td colspan="5">Tempo Investido</td>`;
+  tbody.appendChild(trSI);
+
+  const trInv = document.createElement('tr');
+  trInv.className = 'pct-row';
+  dados.dims.forEach(d => {
+    const td = document.createElement('td');
+    td.innerHTML = `<span class="pct-val">${d.investido}%</span>`;
+    trInv.appendChild(td);
+  });
+  tbody.appendChild(trInv);
+
+  // Tempo Ideal
+  const trSD = document.createElement('tr');
+  trSD.className = 'separator-row';
+  trSD.innerHTML = `<td colspan="5">Tempo Ideal</td>`;
+  tbody.appendChild(trSD);
+
+  const trIde = document.createElement('tr');
+  trIde.className = 'pct-row';
+  dados.dims.forEach(d => {
+    const td = document.createElement('td');
+    td.innerHTML = `<span class="pct-val">${d.ideal}%</span>`;
+    trIde.appendChild(td);
+  });
+  tbody.appendChild(trIde);
+
+  document.getElementById('telaForm').style.display = 'none';
+  document.getElementById('telaResultado').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function voltarForm() {
+  document.getElementById('telaResultado').style.display = 'none';
+  document.getElementById('telaForm').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function gerarPDF() {
+  const btn = document.getElementById('btnPDF');
+  btn.textContent = 'Gerando...';
+  btn.disabled = true;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    const W = 297, H = 210, M = 12;
+    const colW = (W - M * 2) / 5;
+    const LINE_H = 5.5; // altura por linha de texto nas atividades
+    const FONT_SIZE_ATIV = 10;
+    let y = 0;
+
+    // ── Cabeçalho marrom ──
+    doc.setFillColor(115, 57, 9);
+    doc.rect(0, 0, W, 24, 'F');
+
+    // Logo
+    const logoImg = await new Promise((res) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => res(img);
+      img.onerror = () => res(null);
+      img.src = 'https://i.imgur.com/fUPVKmL.png';
+    });
+    if (logoImg) {
+      const c = document.createElement('canvas');
+      c.width = logoImg.width; c.height = logoImg.height;
+      c.getContext('2d').drawImage(logoImg, 0, 0);
+      const lH = 7, lW = lH * (logoImg.width / logoImg.height);
+      doc.addImage(c.toDataURL('image/png'), 'PNG', W - M - lW, 8, lW, lH);
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Radar da Liderança', M, 15);
+    y = 30;
+
+    // ── Cabeçalho das dimensões ──
+    const HEADER_H = 16;
+    doc.setFillColor(115, 57, 9);
+    doc.rect(M, y, W - M * 2, HEADER_H, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    dados.dims.forEach((d, i) => {
+      const cx = M + i * colW + colW / 2;
+      if (i > 0) {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.8);
+        doc.line(M + i * colW, y, M + i * colW, y + HEADER_H);
+      }
+      const lines = d.nome === 'Desenvolvimento de Pessoas'
+        ? ['DESENVOLVIMENTO', 'DE PESSOAS']
+        : doc.splitTextToSize(d.nome.toUpperCase(), colW - 4);
+      const totalTextH = (lines.length - 1) * 4.5;
+      const startY = y + (HEADER_H / 2) - (totalTextH / 2) + 1.5;
+      lines.forEach((l, li) => doc.text(l, cx, startY + li * 4.5, { align: 'center' }));
+    });
+    y += HEADER_H;
+
+    // ── Calcular altura da área de atividades ──
+    // Calcula quantas linhas cada coluna vai ter com a fonte escolhida
+    doc.setFontSize(FONT_SIZE_ATIV);
+    const linhasPorCol = dados.dims.map(d => {
+      if (!d.atividades) return 0;
+      return doc.splitTextToSize(d.atividades, colW - 6).length;
+    });
+    const maxLinhas = Math.max(...linhasPorCol, 1);
+    const areaH = maxLinhas * LINE_H + 8; // 4 de padding top + 4 bottom
+
+    // ── Área de atividades ──
+    doc.setFillColor(245, 245, 245);
+    doc.rect(M, y, W - M * 2, areaH, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(33, 0, 0);
+    dados.dims.forEach((d, i) => {
+      if (i > 0) {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.8);
+        doc.line(M + i * colW, y, M + i * colW, y + areaH);
+      }
+      if (d.atividades) {
+        const lines = doc.splitTextToSize(d.atividades, colW - 6);
+        doc.text(lines, M + i * colW + 3, y + 6, { lineHeightFactor: LINE_H / (FONT_SIZE_ATIV * 0.352778) });
+      }
+    });
+    y += areaH;
+
+    // ── Faixa + % Investido ──
+    const SEP_H = 8, PCT_H = 13;
+    doc.setFillColor(255, 85, 39);
+    doc.rect(M, y, W - M * 2, SEP_H, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TEMPO INVESTIDO', W / 2, y + 5.5, { align: 'center' });
+    y += SEP_H;
+
+    doc.setFillColor(245, 245, 245);
+    doc.rect(M, y, W - M * 2, PCT_H, 'F');
+    doc.setFontSize(12);
+    doc.setTextColor(115, 57, 9);
+    dados.dims.forEach((d, i) => {
+      if (i > 0) {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.8);
+        doc.line(M + i * colW, y, M + i * colW, y + PCT_H);
+      }
+      doc.text(d.investido + '%', M + i * colW + colW / 2, y + 9, { align: 'center' });
+    });
+    y += PCT_H;
+
+    // ── Faixa + % Ideal ──
+    doc.setFillColor(255, 85, 39);
+    doc.rect(M, y, W - M * 2, SEP_H, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TEMPO IDEAL', W / 2, y + 5.5, { align: 'center' });
+    y += SEP_H;
+
+    doc.setFillColor(245, 245, 245);
+    doc.rect(M, y, W - M * 2, PCT_H, 'F');
+    doc.setFontSize(12);
+    doc.setTextColor(115, 57, 9);
+    dados.dims.forEach((d, i) => {
+      if (i > 0) {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.8);
+        doc.line(M + i * colW, y, M + i * colW, y + PCT_H);
+      }
+      doc.text(d.ideal + '%', M + i * colW + colW / 2, y + 9, { align: 'center' });
+    });
+
+    doc.save('Radar da Liderança.pdf');
+
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  }
+
+  btn.textContent = 'Baixar PDF';
+  btn.disabled = false;
+}
+
+buildForm();
+</script>
+</body>
+</html>
